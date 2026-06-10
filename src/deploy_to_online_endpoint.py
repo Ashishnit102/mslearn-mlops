@@ -6,6 +6,7 @@ from azure.core.exceptions import ResourceNotFoundError
 
 import argparse
 import datetime
+import uuid
 
 
 def parse_args():
@@ -35,8 +36,8 @@ def ensure_endpoint(ml_client: MLClient, endpoint_name: str) -> ManagedOnlineEnd
         endpoint = ml_client.online_endpoints.get(name=endpoint_name)
         return endpoint
     except ResourceNotFoundError:
-        unique_suffix = datetime.datetime.now().strftime("%m%d%H%M%f")
-        # Append a suffix to avoid name collisions across the region
+        # Append a short random suffix to avoid name collisions across the region
+        unique_suffix = uuid.uuid4().hex[:8]
         name = f"{endpoint_name}-{unique_suffix}"
 
         endpoint = ManagedOnlineEndpoint(
@@ -81,8 +82,6 @@ def set_traffic_to_deployment(ml_client: MLClient, endpoint_name: str, deploymen
 def main() -> None:
     args = parse_args()
 
-    # Hardcode endpoint name to avoid region name collisions
-    args.endpoint_name = "ash0987ran45"
 
     print("Connecting to Azure Machine Learning workspace...")
     ml_client = get_ml_client(
