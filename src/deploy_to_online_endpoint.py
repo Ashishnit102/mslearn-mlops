@@ -2,9 +2,11 @@ from azure.identity import DefaultAzureCredential
 from azure.ai.ml import MLClient
 from azure.ai.ml.entities import ManagedOnlineEndpoint, ManagedOnlineDeployment, Model
 from azure.ai.ml.constants import AssetTypes
+from azure.core.exceptions import ResourceNotFoundError
 
 import argparse
 import datetime
+import uuid
 
 
 def parse_args():
@@ -33,9 +35,10 @@ def ensure_endpoint(ml_client: MLClient, endpoint_name: str) -> ManagedOnlineEnd
     try:
         endpoint = ml_client.online_endpoints.get(name=endpoint_name)
         return endpoint
-    except Exception:
-        unique_suffix = datetime.datetime.now().strftime("%m%d%H%M%f")
-        name = endpoint_name or f"endpoint-{unique_suffix}"
+    except ResourceNotFoundError:
+        # Append a short random suffix to avoid name collisions across the region
+        unique_suffix = uuid.uuid4().hex[:8]
+        name = f"{endpoint_name}-{unique_suffix}"
 
         endpoint = ManagedOnlineEndpoint(
             name=name,
@@ -44,6 +47,8 @@ def ensure_endpoint(ml_client: MLClient, endpoint_name: str) -> ManagedOnlineEnd
         )
 
         return ml_client.begin_create_or_update(endpoint).result()
+    except Exception:
+        raise
 
 
 def create_or_update_deployment(
@@ -76,6 +81,7 @@ def set_traffic_to_deployment(ml_client: MLClient, endpoint_name: str, deploymen
 
 def main() -> None:
     args = parse_args()
+
 
     print("Connecting to Azure Machine Learning workspace...")
     ml_client = get_ml_client(
